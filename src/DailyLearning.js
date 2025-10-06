@@ -405,6 +405,11 @@ function DailyLearning({ kanjiData }) {
 
       setShowResult(false);
       setIsCorrect({ hanviet: false, kun: false, on: false });
+    setUserAnswers({
+    hanviet: "",
+    kun: [],
+    on: [],
+  });
       return; // Dừng lại, không tăng index
     }
 
@@ -414,6 +419,7 @@ function DailyLearning({ kanjiData }) {
     // Reset UI state - useEffect sẽ tự động khởi tạo userAnswers
     setShowResult(false);
     setIsCorrect({ hanviet: false, kun: false, on: false });
+
   };
 
   // Quay lại kanji trước đó
