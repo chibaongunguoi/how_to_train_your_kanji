@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ExampleWords from "./components/ExampleWords";
 import KanjiQuiz from "./components/KanjiQuiz";
-import { hiraganaToRomaji, isReadingMatch } from "./utils/romajiUtils";
 
 function DailyLearning({ kanjiData }) {
   const [wordsPerDay, setWordsPerDay] = useState(10);
@@ -304,99 +303,8 @@ function DailyLearning({ kanjiData }) {
     });
   };
 
-  // Xử lý submit
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const currentKanji = getCurrentKanji();
-    if (!currentKanji) return;
-
-    // Hàm kiểm tra đáp án với mảng readings - yêu cầu tất cả readings phải đúng
-    const checkAllReadingsAnswer = (
-      userAnswers,
-      correctReadings,
-      fieldType
-    ) => {
-      if (!correctReadings || correctReadings.length === 0) return false;
-
-      const isRomajiMode = romajiMode[fieldType] || false;
-
-      if (Array.isArray(correctReadings)) {
-        const validCorrectReadings = correctReadings.filter(
-          (r) => r.trim() !== ""
-        );
-        const validUserAnswers = userAnswers.filter((a) => a.trim() !== "");
-
-        // Kiểm tra số lượng phải bằng nhau
-        if (validCorrectReadings.length !== validUserAnswers.length)
-          return false;
-
-        // Kiểm tra từng đáp án của user có trong correctReadings không (hỗ trợ romaji)
-        return validUserAnswers.every((userAnswer) =>
-          validCorrectReadings.some((correctReading) =>
-            isReadingMatch(userAnswer, correctReading, isRomajiMode)
-          )
-        );
-      } else {
-        // Backward compatibility với string (hỗ trợ romaji)
-        return (
-          userAnswers.length === 1 &&
-          isReadingMatch(userAnswers[0], correctReadings, isRomajiMode)
-        );
-      }
-    };
-
-    // Hàm kiểm tra đáp án Hán Việt - chỉ cần 1 từ trong input trùng với bất kỳ từ nào trong mảng
-    const checkHanvietAnswer = (userAnswer, correctReadings) => {
-      if (!correctReadings || correctReadings.length === 0) return false;
-
-      const userWords = userAnswer
-        .trim()
-        .toLowerCase()
-        .split(/[\s,、]+/)
-        .filter((word) => word !== "");
-
-      if (Array.isArray(correctReadings)) {
-        // Tách các từ trong correctReadings thành mảng phẳng
-        const allCorrectWords = correctReadings.flatMap((reading) =>
-          reading
-            .toLowerCase()
-            .split(/[\s,、]+/)
-            .filter((word) => word !== "")
-        );
-
-        // Kiểm tra xem có ít nhất 1 từ trong userWords trùng với allCorrectWords không
-        return userWords.some((userWord) =>
-          allCorrectWords.some((correctWord) => userWord === correctWord)
-        );
-      } else {
-        // Backward compatibility với string
-        const correctWords = correctReadings
-          .toLowerCase()
-          .split(/[\s,、]+/)
-          .filter((word) => word !== "");
-        return userWords.some((userWord) =>
-          correctWords.some((correctWord) => userWord === correctWord)
-        );
-      }
-    };
-
-    const results = {
-      hanviet:
-        skipFields.hanviet ||
-        checkHanvietAnswer(userAnswers.hanviet, currentKanji.hanviet),
-      kun:
-        skipFields.kun ||
-        (hasReading(currentKanji.kun)
-          ? checkAllReadingsAnswer(userAnswers.kun, currentKanji.kun, "kun")
-          : true),
-      on:
-        skipFields.on ||
-        (hasReading(currentKanji.on)
-          ? checkAllReadingsAnswer(userAnswers.on, currentKanji.on, "on")
-          : true),
-    };
-
-    const allCorrect = results.hanviet && results.kun && results.on;
+  // Xử lý kết quả kiểm tra từ KanjiQuiz
+  const handleAnswerResult = (results, allCorrect, currentKanji) => {
     setIsCorrect(results);
     setShowResult(true);
 
@@ -1100,7 +1008,8 @@ function DailyLearning({ kanjiData }) {
               onInputChange={handleInputChange}
               onSkipFieldChange={handleSkipFieldChange}
               onRomajiModeChange={handleRomajiModeChange}
-              onSubmit={handleSubmit}
+              enableBuiltInValidation={true}
+              onAnswerResult={handleAnswerResult}
               onNext={nextKanji}
               onPrevious={handlePreviousKanji}
               nextButtonText="Từ tiếp theo"
