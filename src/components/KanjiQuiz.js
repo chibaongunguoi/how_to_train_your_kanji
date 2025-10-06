@@ -20,6 +20,8 @@ function KanjiQuiz({
   onRomajiModeChange = () => {}, // Callback for romaji mode changes
   isMarked = false, // Whether current kanji is marked
   onToggleMark = null, // Callback for toggling mark status
+  enableBuiltInValidation = false, // Enable built-in answer checking
+  onAnswerResult = null, // Callback when answer is checked (if built-in validation enabled)
 }) {
   // Refs for input elements to handle focus navigation
   const hanvietInputRef = useRef(null);
@@ -198,7 +200,11 @@ function KanjiQuiz({
       // Handle ArrowDown key to submit (check answers) - works even when typing
       if (e.key === "ArrowDown" && !showResult) {
         e.preventDefault();
-        onSubmit(e);
+        if (enableBuiltInValidation) {
+          handleBuiltInSubmit(e);
+        } else {
+          onSubmit(e);
+        }
         return;
       }
 
@@ -247,6 +253,100 @@ function KanjiQuiz({
       return reading.length > 0 && reading.some((r) => r.trim() !== "");
     }
     return reading.trim() !== "";
+  };
+
+  // Built-in answer checking functions
+  const checkAllReadingsAnswer = (userAnswers, correctReadings, fieldType) => {
+    if (!correctReadings || correctReadings.length === 0) return false;
+
+    const isRomajiMode = romajiMode[fieldType] || false;
+
+    if (Array.isArray(correctReadings)) {
+      const validCorrectReadings = correctReadings.filter(
+        (r) => r.trim() !== ""
+      );
+      const validUserAnswers = userAnswers.filter((a) => a.trim() !== "");
+
+      // Kiểm tra số lượng phải bằng nhau
+      if (validCorrectReadings.length !== validUserAnswers.length)
+        return false;
+
+      // Kiểm tra từng đáp án của user có trong correctReadings không (hỗ trợ romaji)
+      return validUserAnswers.every((userAnswer) =>
+        validCorrectReadings.some((correctReading) =>
+          isReadingMatch(userAnswer, correctReading, isRomajiMode)
+        )
+      );
+    } else {
+      // Backward compatibility với string (hỗ trợ romaji)
+      return (
+        userAnswers.length === 1 &&
+        isReadingMatch(userAnswers[0], correctReadings, isRomajiMode)
+      );
+    }
+  };
+
+  const checkHanvietAnswer = (userAnswer, correctReadings) => {
+    if (!correctReadings || correctReadings.length === 0) return false;
+
+    const userWords = userAnswer
+      .trim()
+      .toLowerCase()
+      .split(/[\s,、]+/)
+      .filter((word) => word !== "");
+
+    if (Array.isArray(correctReadings)) {
+      // Tách các từ trong correctReadings thành mảng phẳng
+      const allCorrectWords = correctReadings.flatMap((reading) =>
+        reading
+          .toLowerCase()
+          .split(/[\s,、]+/)
+          .filter((word) => word !== "")
+      );
+
+      // Kiểm tra xem có ít nhất 1 từ trong userWords trùng với allCorrectWords không
+      return userWords.some((userWord) =>
+        allCorrectWords.some((correctWord) => userWord === correctWord)
+      );
+    } else {
+      // Backward compatibility với string
+      const correctWords = correctReadings
+        .toLowerCase()
+        .split(/[\s,、]+/)
+        .filter((word) => word !== "");
+      return userWords.some((userWord) =>
+        correctWords.some((correctWord) => userWord === correctWord)
+      );
+    }
+  };
+
+  // Built-in submit handler
+  const handleBuiltInSubmit = (e) => {
+    e.preventDefault();
+    if (!currentKanji) return;
+
+    const results = {
+      hanviet:
+        skipFields.hanviet ||
+        checkHanvietAnswer(userAnswers.hanviet, currentKanji.hanviet),
+      kun:
+        skipFields.kun ||
+        (hasReading(currentKanji.kun)
+          ? checkAllReadingsAnswer(userAnswers.kun, currentKanji.kun, "kun")
+          : true),
+      on:
+        skipFields.on ||
+        (hasReading(currentKanji.on)
+          ? checkAllReadingsAnswer(userAnswers.on, currentKanji.on, "on")
+          : true),
+    };
+
+    const allCorrect = results.hanviet && results.kun && results.on;
+
+    // Call parent callback with results
+    if (onAnswerResult) {
+      onAnswerResult(results, allCorrect, currentKanji);
+    }
   };
 
   // Hàm tạo label với thông tin số lượng âm
@@ -350,7 +450,7 @@ function KanjiQuiz({
       </div>
 
       {/* Quiz form */}
-      <form onSubmit={onSubmit}>
+      <form onSubmit={enableBuiltInValidation ? handleBuiltInSubmit : onSubmit}>
         {/* Hán Việt input */}
         <div style={{ marginBottom: "15px" }}>
           <div
