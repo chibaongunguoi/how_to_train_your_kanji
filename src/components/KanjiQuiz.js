@@ -196,7 +196,7 @@ function KanjiQuiz({
           activeElement.tagName === "TEXTAREA");
 
       // Handle Ctrl key to submit (check answers) - works even when typing
-      if (e.key === "Control" && !showResult) {
+      if (e.key === "Alt" && !showResult) {
         e.preventDefault();
         onSubmit(e);
         return;
