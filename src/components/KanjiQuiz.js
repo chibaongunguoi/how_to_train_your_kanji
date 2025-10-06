@@ -185,7 +185,7 @@ function KanjiQuiz({
     }
   }, [skipFields.hanviet, skipFields.kun, skipFields.on, showResult]);
 
-  // Handle keyboard shortcuts: Ctrl (submit), , (previous), . (next)
+  // Handle keyboard shortcuts: ArrowDown (submit), ArrowLeft (previous), ArrowRight (next)
   useEffect(() => {
     const handleKeyPress = (e) => {
       // Don't trigger navigation keys if user is typing in an input field
@@ -195,22 +195,22 @@ function KanjiQuiz({
         (activeElement.tagName === "INPUT" ||
           activeElement.tagName === "TEXTAREA");
 
-      // Handle Ctrl key to submit (check answers) - works even when typing
-      if (e.key === "Alt" && !showResult) {
+      // Handle ArrowDown key to submit (check answers) - works even when typing
+      if (e.key === "ArrowDown" && !showResult) {
         e.preventDefault();
         onSubmit(e);
         return;
       }
 
-      // Handle comma key (both , and 、) to go to previous kanji - ALWAYS works even when typing in input
-      if ((e.key === "," || e.key === "、") && onPrevious) {
+      // Handle ArrowLeft key to go to previous kanji - ALWAYS works even when typing in input
+      if (e.key === "ArrowLeft" && onPrevious) {
         e.preventDefault();
         onPrevious();
         return;
       }
 
-      // Handle period key (both . and 。) to go to next kanji - ALWAYS works even when typing in input
-      if (e.key === "." || e.key === "。") {
+      // Handle ArrowRight key to go to next kanji - ALWAYS works even when typing in input
+      if (e.key === "ArrowRight") {
         e.preventDefault();
         onNext();
         return;
@@ -852,9 +852,9 @@ function KanjiQuiz({
               color: "#6c757d",
             }}
           >
-            💡 Phím tắt: <strong>Ctrl</strong> = Kiểm tra{onPrevious && ", "}
-            <strong>, 、</strong> = Chữ trước{onPrevious && ""},{" "}
-            <strong>. 。</strong> = Chữ tiếp theo
+            💡 Phím tắt: <strong>↓</strong> = Kiểm tra{onPrevious && ", "}
+            <strong>←</strong> = Chữ trước{onPrevious && ""},{" "}
+            <strong>→</strong> = Chữ tiếp theo
           </div>
         )}
       </form>
