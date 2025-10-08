@@ -80,6 +80,41 @@ function Guide() {
         📖 Hướng dẫn sử dụng How to Train Your Kanji
       </h1>
 
+      {/* Video hướng dẫn YouTube */}
+      <div style={sectionStyle}>
+        <h2 style={titleStyle}>🎥 Video hướng dẫn chi tiết</h2>
+        <div
+          style={{
+            position: "relative",
+            paddingBottom: "56.25%", // 16:9 aspect ratio
+            height: 0,
+            overflow: "hidden",
+            marginBottom: "15px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+          }}
+        >
+          <iframe
+            src="https://www.youtube.com/embed/C4h2jRilSJw"
+            title="Hướng dẫn sử dụng How to Train Your Kanji"
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              border: "none",
+              borderRadius: "8px",
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+        <p style={{ textAlign: "center", color: "#6c757d", fontSize: "14px", fontStyle: "italic" }}>
+          🎬 Video hướng dẫn chi tiết cách sử dụng tất cả tính năng của ứng dụng
+        </p>
+      </div>
+
       {/* Định dạng file Excel */}
       <div style={sectionStyle}>
         <h2 style={titleStyle}>📊 Định dạng file Excel</h2>
