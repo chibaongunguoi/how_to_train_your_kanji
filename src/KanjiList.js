@@ -419,6 +419,9 @@ function KanjiList({ kanjiData, onDeleteKanji }) {
       // Loại bỏ khoảng trắng thừa
       normalized = normalized.replace(/\s+/g, " ").trim();
       
+      // Chuyển thành chữ thường
+      normalized = normalized.toLowerCase();
+      
       return normalized;
     };
 
@@ -484,9 +487,41 @@ function KanjiList({ kanjiData, onDeleteKanji }) {
     // Điều chỉnh độ rộng cột
     const columnWidths = [
       { wch: 15 }, // Cột A - Âm On
-      { wch: 80 }, // Cột B - Các chữ Hán
+      { wch: 100 }, // Cột B - Các chữ Hán (tăng width)
     ];
     worksheet["!cols"] = columnWidths;
+
+    // Áp dụng font cho từng cell
+    const range = XLSX.utils.decode_range(worksheet['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!worksheet[cellAddress]) continue;
+
+        // Khởi tạo style nếu chưa có
+        if (!worksheet[cellAddress].s) {
+          worksheet[cellAddress].s = {};
+        }
+
+        // Cột A (Âm On) - Yu Mincho
+        if (C === 0) {
+          worksheet[cellAddress].s.font = {
+            name: "Yu Mincho",
+            sz: 11
+          };
+        }
+        // Cột B (Các chữ Hán) - Cần xử lý mixed font
+        else if (C === 1) {
+          // Vì XLSX không hỗ trợ mixed font trong 1 cell,
+          // ta sẽ set font mặc định là Times New Roman
+          // và kanji sẽ tự động dùng fallback font hệ thống (Yu Mincho)
+          worksheet[cellAddress].s.font = {
+            name: "Times New Roman, Yu Mincho",
+            sz: 11
+          };
+        }
+      }
+    }
 
     // Tạo workbook
     const workbook = XLSX.utils.book_new();
