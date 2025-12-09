@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import * as XLSX from "xlsx";
 
 function KanjiList({ kanjiData, onDeleteKanji }) {
   const [sortBy, setSortBy] = useState(null); // 'hanviet', 'kun', 'on', or null
@@ -392,6 +393,112 @@ function KanjiList({ kanjiData, onDeleteKanji }) {
     }
     return "";
   };
+
+  // Hàm xuất file Excel theo âm On
+  const exportOnReadingsToExcel = () => {
+    // Hàm chuẩn hóa Hán Việt: thay thế xuống dòng và /n thành /
+    const normalizeHanviet = (hanviet) => {
+      if (!hanviet) return "";
+      
+      let normalized = Array.isArray(hanviet)
+        ? hanviet.join(", ")
+        : hanviet.toString();
+      
+      // Thay thế các ký tự xuống dòng (\n, \r\n, \r) thành /
+      normalized = normalized.replace(/\r?\n|\r/g, "/");
+      
+      // Thay thế /n thành /
+      normalized = normalized.replace(/\/n/g, "/");
+      
+      // Loại bỏ các dấu / thừa (nhiều dấu / liên tiếp)
+      normalized = normalized.replace(/\/+/g, "/");
+      
+      // Thêm khoảng trắng sau dấu / để dễ đọc
+      normalized = normalized.replace(/\//g, "/ ");
+      
+      // Loại bỏ khoảng trắng thừa
+      normalized = normalized.replace(/\s+/g, " ").trim();
+      
+      return normalized;
+    };
+
+    // Tạo object để nhóm kanji theo âm On
+    const onReadingsMap = {};
+    const kanjiWithoutOn = []; // Danh sách kanji không có âm On
+
+    kanjiData.forEach((item) => {
+      // Kiểm tra nếu không có âm On
+      if (!item.on || (Array.isArray(item.on) && item.on.length === 0) || 
+          (typeof item.on === 'string' && item.on.trim() === '')) {
+        // Chuẩn hóa Hán Việt
+        const hanviet = normalizeHanviet(item.hanviet);
+        const kanjiEntry = `${hanviet} (${item.kanji})`;
+        kanjiWithoutOn.push(kanjiEntry);
+        return;
+      }
+
+      // Xử lý âm On (có thể là string hoặc array)
+      const onReadings = Array.isArray(item.on) ? item.on : [item.on];
+
+      onReadings.forEach((onReading) => {
+        const cleanedReading = onReading.trim();
+        if (!cleanedReading) return;
+
+        // Chuẩn hóa Hán Việt
+        const hanviet = normalizeHanviet(item.hanviet);
+
+        // Tạo entry cho kanji này
+        const kanjiEntry = `${hanviet} (${item.kanji})`;
+
+        // Thêm vào map
+        if (!onReadingsMap[cleanedReading]) {
+          onReadingsMap[cleanedReading] = [];
+        }
+        onReadingsMap[cleanedReading].push(kanjiEntry);
+      });
+    });
+
+    // Sắp xếp các âm On theo thứ tự alphabet
+    const sortedOnReadings = Object.keys(onReadingsMap).sort();
+
+    // Tạo dữ liệu cho Excel
+    const excelData = sortedOnReadings.map((onReading) => {
+      const kanjiList = onReadingsMap[onReading].join(", ");
+      return {
+        "Âm On": onReading,
+        "Các chữ Hán": kanjiList,
+      };
+    });
+
+    // Thêm dòng cuối với các kanji không có âm On
+    if (kanjiWithoutOn.length > 0) {
+      excelData.push({
+        "Âm On": "",
+        "Các chữ Hán": kanjiWithoutOn.join(", "),
+      });
+    }
+
+    // Tạo worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Điều chỉnh độ rộng cột
+    const columnWidths = [
+      { wch: 15 }, // Cột A - Âm On
+      { wch: 80 }, // Cột B - Các chữ Hán
+    ];
+    worksheet["!cols"] = columnWidths;
+
+    // Tạo workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Âm On");
+
+    // Xuất file
+    const fileName = `Danh_sach_am_On_${new Date()
+      .toISOString()
+      .slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  };
+
   return (
     <div style={{ padding: "20px" }}>
       <h2>Danh sách các chữ có trong hệ thống</h2>
@@ -415,114 +522,152 @@ function KanjiList({ kanjiData, onDeleteKanji }) {
                 gap: "20px",
                 alignItems: "center",
                 flexWrap: "wrap",
+                justifyContent: "space-between",
               }}
             >
-              <strong>📊 Thống kê:</strong>
-              <button
-                onClick={() => setShowNewOnly(!showNewOnly)}
+              <div
                 style={{
-                  color: showNewOnly ? "white" : "#28a745",
-                  backgroundColor: showNewOnly ? "#28a745" : "transparent",
-                  border: showNewOnly
-                    ? "1px solid #28a745"
-                    : "1px solid #28a745",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
+                  display: "flex",
+                  gap: "20px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <strong>📊 Thống kê:</strong>
+                <button
+                  onClick={() => setShowNewOnly(!showNewOnly)}
+                  style={{
+                    color: showNewOnly ? "white" : "#28a745",
+                    backgroundColor: showNewOnly ? "#28a745" : "transparent",
+                    border: showNewOnly
+                      ? "1px solid #28a745"
+                      : "1px solid #28a745",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: showNewOnly ? "bold" : "normal",
+                    transition: "all 0.3s ease",
+                  }}
+                  title={
+                    showNewOnly
+                      ? "Hiển thị tất cả kanji"
+                      : "Chỉ hiển thị kanji mới"
+                  }
+                >
+                  🆕 Mới: {kanjiData.filter((k) => k.status === "new").length}
+                  {showNewOnly && " (đang lọc)"}
+                </button>
+                <button
+                  onClick={() => setShowUpdatedOnly(!showUpdatedOnly)}
+                  style={{
+                    color: showUpdatedOnly ? "#212529" : "#ffc107",
+                    backgroundColor: showUpdatedOnly ? "#ffc107" : "transparent",
+                    border: showUpdatedOnly
+                      ? "1px solid #ffc107"
+                      : "1px solid #ffc107",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: showUpdatedOnly ? "bold" : "normal",
+                    transition: "all 0.3s ease",
+                  }}
+                  title={
+                    showUpdatedOnly
+                      ? "Hiển thị tất cả kanji"
+                      : "Chỉ hiển thị kanji cập nhật"
+                  }
+                >
+                  🔄 Cập nhật:{" "}
+                  {kanjiData.filter((k) => k.status === "updated").length}
+                  {showUpdatedOnly && " (đang lọc)"}
+                </button>
+                <button
+                  onClick={() => setShowExistingOnly(!showExistingOnly)}
+                  style={{
+                    color: showExistingOnly ? "white" : "#6c757d",
+                    backgroundColor: showExistingOnly ? "#6c757d" : "transparent",
+                    border: showExistingOnly
+                      ? "1px solid #6c757d"
+                      : "1px solid #6c757d",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: showExistingOnly ? "bold" : "normal",
+                    transition: "all 0.3s ease",
+                  }}
+                  title={
+                    showExistingOnly
+                      ? "Hiển thị tất cả kanji"
+                      : "Chỉ hiển thị kanji không đổi"
+                  }
+                >
+                  ✅ Không đổi:{" "}
+                  {
+                    kanjiData.filter((k) => !k.status || k.status === "existing")
+                      .length
+                  }
+                  {showExistingOnly && " (đang lọc)"}
+                </button>
+                <span style={{ color: "#17a2b8" }}>
+                  📝 {activeSearchKeyword ? "Hiển thị" : "Tổng"}:{" "}
+                  {filteredAndSortedKanjiData.length}
+                  {activeSearchKeyword && ` / ${kanjiData.length}`}
+                </span>
+                <button
+                  onClick={() => setShowMarkedOnly(!showMarkedOnly)}
+                  style={{
+                    color: showMarkedOnly ? "white" : "#e83e8c",
+                    backgroundColor: showMarkedOnly ? "#e83e8c" : "transparent",
+                    border: showMarkedOnly
+                      ? "1px solid #e83e8c"
+                      : "1px solid #e83e8c",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: showMarkedOnly ? "bold" : "normal",
+                    transition: "all 0.3s ease",
+                  }}
+                  title={
+                    showMarkedOnly
+                      ? "Hiển thị tất cả kanji"
+                      : "Chỉ hiển thị kanji đã đánh dấu"
+                  }
+                >
+                  ⭐ Đã đánh dấu: {markedWords.length}
+                  {showMarkedOnly && " (đang lọc)"}
+                </button>
+              </div>
+
+              {/* Nút xuất Excel */}
+              <button
+                onClick={exportOnReadingsToExcel}
+                style={{
+                  padding: "8px 16px",
+                  backgroundColor: "#17a2b8",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "5px",
                   cursor: "pointer",
                   fontSize: "14px",
-                  fontWeight: showNewOnly ? "bold" : "normal",
+                  fontWeight: "bold",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                   transition: "all 0.3s ease",
                 }}
-                title={
-                  showNewOnly
-                    ? "Hiển thị tất cả kanji"
-                    : "Chỉ hiển thị kanji mới"
-                }
-              >
-                🆕 Mới: {kanjiData.filter((k) => k.status === "new").length}
-                {showNewOnly && " (đang lọc)"}
-              </button>
-              <button
-                onClick={() => setShowUpdatedOnly(!showUpdatedOnly)}
-                style={{
-                  color: showUpdatedOnly ? "#212529" : "#ffc107",
-                  backgroundColor: showUpdatedOnly ? "#ffc107" : "transparent",
-                  border: showUpdatedOnly
-                    ? "1px solid #ffc107"
-                    : "1px solid #ffc107",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: showUpdatedOnly ? "bold" : "normal",
-                  transition: "all 0.3s ease",
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = "#138496";
+                  e.target.style.transform = "scale(1.05)";
                 }}
-                title={
-                  showUpdatedOnly
-                    ? "Hiển thị tất cả kanji"
-                    : "Chỉ hiển thị kanji cập nhật"
-                }
-              >
-                🔄 Cập nhật:{" "}
-                {kanjiData.filter((k) => k.status === "updated").length}
-                {showUpdatedOnly && " (đang lọc)"}
-              </button>
-              <button
-                onClick={() => setShowExistingOnly(!showExistingOnly)}
-                style={{
-                  color: showExistingOnly ? "white" : "#6c757d",
-                  backgroundColor: showExistingOnly ? "#6c757d" : "transparent",
-                  border: showExistingOnly
-                    ? "1px solid #6c757d"
-                    : "1px solid #6c757d",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: showExistingOnly ? "bold" : "normal",
-                  transition: "all 0.3s ease",
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = "#17a2b8";
+                  e.target.style.transform = "scale(1)";
                 }}
-                title={
-                  showExistingOnly
-                    ? "Hiển thị tất cả kanji"
-                    : "Chỉ hiển thị kanji không đổi"
-                }
+                title="Xuất danh sách âm On và các chữ Hán tương ứng ra file Excel"
               >
-                ✅ Không đổi:{" "}
-                {
-                  kanjiData.filter((k) => !k.status || k.status === "existing")
-                    .length
-                }
-                {showExistingOnly && " (đang lọc)"}
-              </button>
-              <span style={{ color: "#17a2b8" }}>
-                📝 {activeSearchKeyword ? "Hiển thị" : "Tổng"}:{" "}
-                {filteredAndSortedKanjiData.length}
-                {activeSearchKeyword && ` / ${kanjiData.length}`}
-              </span>
-              <button
-                onClick={() => setShowMarkedOnly(!showMarkedOnly)}
-                style={{
-                  color: showMarkedOnly ? "white" : "#e83e8c",
-                  backgroundColor: showMarkedOnly ? "#e83e8c" : "transparent",
-                  border: showMarkedOnly
-                    ? "1px solid #e83e8c"
-                    : "1px solid #e83e8c",
-                  borderRadius: "4px",
-                  padding: "4px 8px",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: showMarkedOnly ? "bold" : "normal",
-                  transition: "all 0.3s ease",
-                }}
-                title={
-                  showMarkedOnly
-                    ? "Hiển thị tất cả kanji"
-                    : "Chỉ hiển thị kanji đã đánh dấu"
-                }
-              >
-                ⭐ Đã đánh dấu: {markedWords.length}
-                {showMarkedOnly && " (đang lọc)"}
+                📥 Xuất danh sách Âm On
               </button>
             </div>
           </div>
